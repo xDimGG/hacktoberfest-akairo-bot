@@ -1,5 +1,5 @@
 const { Command } = require('discord-akairo');
-const https = require('https');
+const fetch = require('node-fetch');
 
 class UrlSafeCommand extends Command {
 	constructor () {
@@ -22,23 +22,14 @@ class UrlSafeCommand extends Command {
 	}
 
 	exec (msg, { url }) {
-		https.get(`https://www.virustotal.com/vtapi/v2/url/report?apikey=${process.env.VIRUSTOTAL_APIKEY}&resource=${url}`, response => {
-			let data = '';
-			response.on('data', chunk => { data += chunk; });
-			response.on('end', () => {
-				const positive = JSON.parse(data).positives;
-				const total = JSON.parse(data).total;
-				if (positive > 0) {
-					msg.reply(`${url} is malicious! Detected in ${positive}/${total} scans.`);
-				} else {
-					msg.reply(`${url} is safe!`);
-				}
-			});
-			response.on('error', (err) => {
-				msg.reply('Could not verify this url. Please try again.');
-				console.log(err);
-			});
-		});
+		try {
+			const res = await fetch(`https://www.virustotal.com/vtapi/v2/url/report?apikey=${process.env.VIRUSTOTAL_APIKEY}&resource=${url}`);
+			const { positive, total } = await res.json();
+			msg.reply(positive > 0 ? `${url} is malicious! Detected in ${positive}/${total} scans.` : `${url} is safe!`);
+		} catch (err) {
+			msg.reply('Could not verify this url. Please try again.');
+			this.client.logger.error(err);
+		}
 	}
 }
 
